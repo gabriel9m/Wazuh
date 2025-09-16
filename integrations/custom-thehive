@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Integração Wazuh -> TheHive (cria ALERTS em /api/v1/alert).
+- Gera deep link para o Discover do Wazuh (igual ao do Teams).
+- Extrai campos úteis e envia observables (agent, host, cmd, etc).
+- Autenticação por API Key (header X-Api-Key). Também envia Authorization: Bearer.
+Uso pelo Integrator (args):
+  1) caminho do alerta JSON
+  2) api_key (opcional; pode vir do <api_key> no ossec.conf)
+  3) thehive_base_url (ex.: http://10.96.123.180:9000)
+"""
+
+import sys, json, requests, urllib.parse
+from datetime import datetime, timedelta, timezone
+
+# ===== Ajuste o dashboard do Wazuh p/ o deep link (igual ao seu Teams) =====
+DASH_BASE = "https://10.96.123.166"
+DISCOVER_PATH = "/app/data-explorer/discover"
+INDEX_PATTERN = "wazuh-alerts-*"
+TIME_PAD_BEFORE_MIN = 5
+TIME_PAD_AFTER_MIN = 5
+HTTP_TIMEOUT = 10
+
+def safe_get(d, *keys, default=""):
+    for k in keys:
+        if isinstance(d, dict) and k in d:
+            d = d[k]
+        else:
+            return default
+    return d
+
+def parse_ts(ts: str):
+    if not ts:
+        return None
+    try:
+        s = ts
+        if s.endswith('Z'):
+            s = s[:-1] + "+00:00"
+        if ('+' in s or '-' in s[10:]) and len(s) >= 5:
+            signpos = max(s.rfind('+'), s.rfind('-'))
+            if signpos != -1:
+                tz = s[signpos:]
+                if len(tz) >= 5 and tz[3] != ':':
+                    s = s[:signpos] + tz[:3] + ":" + tz[3:]
+        dt = datetime.fromisoformat(s)
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+def rison_quote(v: str) -> str:
+    return (v or "").replace("'", "\\'")
+
+def build_discover_link(rule_id, agent_name, computer, event_dt_utc):
+    parts = []
+    if rule_id:
+        parts.append(f"rule.id:{rule_id}")
+    if agent_name:
+        parts.append(f'agent.name:"{agent_name}"')
+    if computer and (computer != agent_name):
+        parts.append(f'data.win.system.computer:"{computer}"')
+    kuery = " AND ".join(parts) if parts else "*"
+
+    if event_dt_utc:
+        start = (event_dt_utc - timedelta(minutes=TIME_PAD_BEFORE_MIN)).isoformat(timespec="milliseconds").replace("+00:00","Z")
+        end   = (event_dt_utc + timedelta(minutes=TIME_PAD_AFTER_MIN)).isoformat(timespec="milliseconds").replace("+00:00","Z")
+        g = f"(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:'{rison_quote(start)}',to:'{rison_quote(end)}'))"
+    else:
+        g = "(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-10m,to:now))"
+
+    a = f"(discover:(columns:!(_source),isDirty:!f,sort:!()),metadata:(indexPattern:'{rison_quote(INDEX_PATTERN)}',view:discover))"
+    q = f"(filters:!(),query:(language:kuery,query:'{rison_quote(kuery)}'))"
+    safe_chars = "()':,!*"
+    base = DASH_BASE.rstrip('/') + DISCOVER_PATH + "#?"
+    return base + "_a=" + urllib.parse.quote(a, safe=safe_chars) + "&" + "_g=" + urllib.parse.quote(g, safe=safe_chars) + "&" + "_q=" + urllib.parse.quote(q, safe=safe_chars)
+
+def map_level_to_severity(level: int) -> int:
+    # TheHive geralmente usa 1=Low, 2=Medium, 3=High
+    if level >= 12:
+        return 3
+    if level >= 10:
+        return 2
+    return 1
+
+def main():
+    if len(sys.argv) < 2:
+        print("Uso: custom-thehive <alert.json> [api_key] [thehive_base_url]", file=sys.stderr)
+        sys.exit(2)
+
+    alert_path = sys.argv[1]
+    api_key = sys.argv[2] if len(sys.argv) > 2 else ""
+    thehive_base = sys.argv[3] if len(sys.argv) > 3 else "http://127.0.0.1:9000"
+    thehive_alert_url = thehive_base.rstrip('/') + "/api/v1/alert"
+
+    with open(alert_path, "r", encoding="utf-8") as f:
+        alert = json.load(f)
+
+    rule = alert.get("rule", {}) or {}
+    agent = alert.get("agent", {}) or {}
+    win = alert.get("win", {}) or {}
+    ed = win.get("eventdata", {}) or {}
+
+    level = int(rule.get("level", 0) or 0)
+    rule_id = rule.get("id")
+    desc = rule.get("description", "Alerta do Wazuh")
+    groups = rule.get("groups", []) or []
+    mitre_ids = safe_get(rule, "mitre", "id", default=[]) or []
+
+    ts = alert.get("@timestamp") or alert.get("timestamp") or ""
+    event_dt_utc = parse_ts(ts)
+    epoch_ms = int(event_dt_utc.timestamp() * 1000) if event_dt_utc else None
+
+    computer = safe_get(alert, "data", "win", "system", "computer", default=agent.get("name", ""))
+    image = ed.get("Image") or ed.get("image", "")
+    cmd = ed.get("CommandLine") or ed.get("commandLine", "")
+    target = ed.get("TargetFilename") or ed.get("targetFilename", "")
+    parent = ed.get("ParentImage") or ed.get("parentImage", "")
+
+    discover_url = build_discover_link(rule_id, agent.get("name",""), computer, event_dt_utc)
+
+    # Tags úteis
+    tags = []
+    if rule_id: tags.append(f"rule:{rule_id}")
+    tags += [f"group:{g}" for g in groups]
+    tags += [f"mitre:{m}" for m in (mitre_ids if isinstance(mitre_ids, list) else [mitre_ids])]
+    if agent.get("name"): tags.append(f"agent:{agent.get('name')}")
+    if computer: tags.append(f"host:{computer}")
+
+    # Observables (artefatos)
+    observables = []
+    if agent.get("name"): observables.append({"dataType": "hostname", "data": agent["name"], "message": "Agente Wazuh"})
+    if computer and computer != agent.get("name"): observables.append({"dataType": "hostname", "data": computer, "message": "Host reportado"})
+    if image: observables.append({"dataType": "file", "data": image, "message": "Image/Process"})
+    if parent: observables.append({"dataType": "file", "data": parent, "message": "ParentImage"})
+    if target: observables.append({"dataType": "file", "data": target, "message": "TargetFilename"})
+    if cmd: observables.append({"dataType": "other", "data": cmd, "message": "CommandLine"})
+    if discover_url: observables.append({"dataType": "url", "data": discover_url, "message": "Abrir no Wazuh Discover"})
+
+    # Fonte / referência
+    source = "Wazuh"
+    src_ref_parts = [str(rule_id or "noid"), agent.get("name","noagent"), ts or "notime"]
+    source_ref = "WAZUH-" + "-".join(x.replace(" ", "_") for x in src_ref_parts)[:240]
+
+    payload = {
+        "title": f"Wazuh: Regra {rule_id} (Nível {level})",
+        "description": desc or "Alerta do Wazuh",
+        "severity": map_level_to_severity(level),   # 1..3
+        "date": epoch_ms,
+        "tags": list(dict.fromkeys(tags)),          # dedup
+        "tlp": 2,                                   # Amber por padrão
+        "pap": 2,
+        "type": "external",                         # origem externa
+        "source": source,
+        "sourceRef": source_ref,
+        "artifacts": observables
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-Organisation": "Empresa"
+    }
+    if api_key:
+        headers["X-Api-Key"] = api_key
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    r = requests.post(thehive_alert_url, headers=headers, json=payload, timeout=HTTP_TIMEOUT)
+    # Se não for 2xx, deixe o Integrator registrar em ossec.log:
+    r.raise_for_status()
+
+if __name__ == "__main__":
+    main()
+PY
