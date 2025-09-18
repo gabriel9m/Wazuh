@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Wazuh -> TheHive
+- Lê o alerta JSON do Wazuh (argv[1])
+- Usa API Key (argv[2]) e URL base do TheHive (argv[3]), já vindas do ossec.conf
+- Envia POST /api/alert com Authorization: Bearer <API_KEY> e X-Organisation: SABIN
+"""
+
+import sys, json, requests, hashlib, socket
+from datetime import datetime, timezone
+
+# ======== PARÂMETROS DO WAZUH INTEGRATOR ========
+if len(sys.argv) < 2:
+    print("Uso: custom-thehive <alert.json> [api_key] [thehive_base_url]", file=sys.stderr)
+    sys.exit(2)
+
+alert_path = sys.argv[1]
+API_KEY    = sys.argv[2] if len(sys.argv) > 2 else ""
+BASE_URL   = sys.argv[3].rstrip("/") if len(sys.argv) > 3 else "http://127.0.0.1:9000"
+
+# ======== ORGANIZAÇÃO DO THEHIVE ========
+# Você informou que a organização é SABIN.
+ORG = "SABIN"
+
+# ======== LEITURA DO ALERTA ========
+with open(alert_path, "r", encoding="utf-8") as f:
+    alert = json.load(f)
+
+rule = alert.get("rule", {}) or {}
+agent = alert.get("agent", {}) or {}
+tags  = rule.get("groups", []) or []
+level = int(rule.get("level", 0) or 0)
+title = rule.get("description") or f"Wazuh alert (rule {rule.get('id')})"
+
+# prioridade/severidade simples baseada no level do Wazuh
+def sev_from_level(n):
+    # TheHive aceita 1..4 (Low..High). Ajuste fino se preferir.
+    return 4 if n >= 15 else (3 if n >= 12 else (2 if n >= 8 else 1))
+severity = sev_from_level(level)
+
+# timestamp
+ts = alert.get("@timestamp") or alert.get("timestamp")
+try:
+    dt_utc = datetime.fromisoformat(ts.replace("Z","+00:00")).astimezone(timezone.utc) if ts else None
+except Exception:
+    dt_utc = None
+
+# host / agent
+hostname = (alert.get("data",{})\
+                 .get("win",{})\
+                 .get("system",{})\
+                 .get("computer")) or agent.get("name") or ""
+
+# Campos frequentes em eventos Windows
+ed = alert.get("win",{}).get("eventdata",{}) or {}
+image   = ed.get("Image") or ed.get("image")
+cmdline = ed.get("CommandLine") or ed.get("commandLine")
+target  = ed.get("TargetFilename") or ed.get("targetFilename")
+parent  = ed.get("ParentImage") or ed.get("parentImage")
+
+# Fonte e deduplicação
+wazuh_ip   = "10.96.123.166"
+source     = f"Wazuh@{wazuh_ip}"
+# sourceRef deve ser único no TheHive. Usamos um hash estável do conteúdo chave:
+ref_basis  = f"{rule.get('id')}|{agent.get('id')}|{hostname}|{ts}|{cmdline}|{target}"
+source_ref = hashlib.sha1(ref_basis.encode("utf-8")).hexdigest()[:32]
+
+# Monta descrição enriquecida
+lines = []
+lines.append(f"**Regra**: {rule.get('id')} (nível {level})")
+if hostname: lines.append(f"**Host**: {hostname}")
+if agent:    lines.append(f"**Agente**: {agent.get('name','')} ({agent.get('id','')})")
+if ts:       lines.append(f"**Tempo**: {ts}")
+if image:    lines.append(f"**Imagem**: {image}")
+if parent:   lines.append(f"**Parent**: {parent}")
+if target:   lines.append(f"**Alvo**: {target}")
+if cmdline:  lines.append(f"**Comando**: {cmdline}")
+description = (rule.get("description") or "Alerta do Wazuh") + "\n\n" + "\n".join(lines)
+
+# Observables úteis (opcionais)
+def obs(dataType, data, tlp=2):
+    return {"dataType": dataType, "data": str(data), "tlp": tlp}
+observables = []
+if hostname: observables.append(obs("hostname", hostname))
+if image:    observables.append(obs("filename", image))
+if target:   observables.append(obs("filename", target))
+if cmdline:  observables.append(obs("other", cmdline))
+
+payload = {
+    "title": title,
+    "description": description,
+    "type": "external",
+    "source": source,
+    "sourceRef": source_ref,
+    "severity": severity,     # 1..4
+    "date": int(dt_utc.timestamp()*1000) if dt_utc else None,
+    "tags": [str(t) for t in tags][:50],
+    "observables": observables[:100],
+}
+
+# Remove campos None
+payload = {k:v for k,v in payload.items() if v not in (None, "", [])}
+
+# Envio
+url = f"{BASE_URL}/api/alert"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json",
+    "X-Organisation": ORG,
+}
+timeout = 15
+r = requests.post(url, headers=headers, json=payload, timeout=timeout)
+# Se 409 (duplicado) não é erro operacional — TheHive evita duplicados pelo sourceRef
+if r.status_code not in (200, 201, 409):
+    print(f"[custom-thehive] HTTP {r.status_code}: {r.text}", file=sys.stderr)
+    r.raise_for_status()
