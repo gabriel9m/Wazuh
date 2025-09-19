@@ -1,0 +1,34 @@
+
+<group name="rule_exclusion,">
+    <!-- Eventos de falha de auditoria SeTcbPrivilege -->
+    <rule id="119800" level="4">
+        <if_sid>60107</if_sid>
+        <field name="win.eventdata.privilegeList">^SeTcbPrivilege$</field>
+        <description>Eventos de falha de auditoria SeTcbPrivilege</description>
+        <options>no_full_log</options>
+    </rule>
+    <!-- Excluir Eventos de falha de auditoria SeTcbPrivilege em C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe-->
+    <rule id="119801" level="0">
+        <if_sid>119800</if_sid>
+        <field name="win.eventdata.processName">^C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe$</field>
+        <description>Excluir os eventos de falha de auditoria SeTcbPrivilege no Chrome</description>
+        <options>no_full_log</options>
+    </rule>
+    <!-- Excluir Eventos de falha de auditoria SeTcbPrivilege em C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe-->
+    <rule id="119802" level="0">
+        <if_sid>119800</if_sid>
+        <field name="win.eventdata.processName">^C:\\\\Program Files \(x86\)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe$</field>
+        <description>Excluir os eventos de falha de auditoria SeTcbPrivilege no Edge</description>
+        <options>no_full_log</options>
+    </rule>
+    <!-- Excluir Eventos de falha de auditoria SeTcbPrivilege em C:\\\\Windows\\\\System32\\\\svchost.exe que envolvam o subjectUserName SERVIÇO LOCAL -->
+    <rule id="119803" level="0">
+        <if_sid>119800</if_sid>
+        <field name="win.system.eventID">^4673$</field>
+        <field name="win.eventdata.privilegeList">^SeTcbPrivilege$</field>
+        <field name="win.eventdata.processName">^C:\\\\Windows\\\\System32\\\\svchost.exe$</field>
+        <field name="win.eventdata.subjectUserSid">^S-1-5-19$</field>
+        <description>Excluir os eventos de falha de auditoria SeTcbPrivilege do svchost.exe em que o subjectUserName seja SERVIÇO LOCAL</description>
+        <options>no_full_log</options>
+    </rule>
+</group>
