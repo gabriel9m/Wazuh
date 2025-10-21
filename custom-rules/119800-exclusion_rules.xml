@@ -31,4 +31,176 @@
         <description>Excluir os eventos de falha de auditoria SeTcbPrivilege do svchost.exe em que o subjectUserName seja SERVIÇO LOCAL</description>
         <options>no_full_log</options>
     </rule>
+    
+    <!-- 
+      [Bloco de supressão de FP da 118005 — OneDrive self-update]
+      Escopo: regras 119811–119829.
+      Objetivo: suprimir falsos positivos da regra 118005 decorrentes da autoatualização legítima do Microsoft OneDrive 
+                (criação/atualização de binários pelo OneDriveSetup.exe/OneDrive.exe nos caminhos padrão do perfil do usuário).
+      Efeito: level=0, group=whitelist, options=no_full_log (silenciado sobre a 118005).
+      Observação: se a regra 118005 ou os caminhos/comportamentos do OneDrive mudarem, REVISAR este bloco.
+      Última revisão: 2025-10-21.
+    -->
+    <rule id="119804" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\OneDrive\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+        
+    <rule id="119805" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\OneDrive\.App\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+        
+    <rule id="119806" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\OneDriveStandaloneUpdater\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+        
+    <rule id="119807" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\[^\\\\]+\\\\OneDrive\.App\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+    
+    <rule id="119808" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\[^\\\\]+\\\\OneDrive\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+    
+    <rule id="119809" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\[^\\\\]+\\\\OneDriveSetup\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+    
+    <rule id="119810" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\[^\\\\]+\\\\OneDriveStandaloneUpdater\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+    
+    <rule id="119811" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\[^\\\\]+\\\\OneDriveUpdaterService\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+    
+        
+    <rule id="119812" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\[^\\\\]+\\\\OneDrive\.Sync\.Service\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+    
+    <rule id="119813" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\[^\\\\]+\\\\OneDriveActionHelper\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+    
+    <rule id="119814" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\[^\\\\]+\\\\OneDriveLauncher\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+    
+    <rule id="119815" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\[^\\\\]+\\\\OneDriveFileLauncher\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+    
+    <rule id="119816" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\[^\\\\]+\\\\OneDrivePatcher\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+    
+    <rule id="119817" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\[^\\\\]+\\\\FileSyncConfig\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+    
+    <rule id="119818" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\[^\\\\]+\\\\FileSyncHelper\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+    
+    <rule id="119819" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\[^\\\\]+\\\\FileCoAuth\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+    
+    <rule id="119820" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\[^\\\\]+\\\\Microsoft\.SharePoint\.NativeMessagingClient\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+    
+    <rule id="119821" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\OneDrive\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\Update\\\\OneDriveSetup\.exe$</field>
+        <description>FP conhecido: atualização legítima do OneDrive (silenciado sobre a 118005).</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
 </group>
