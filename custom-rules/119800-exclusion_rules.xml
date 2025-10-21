@@ -33,7 +33,7 @@
     </rule>
     
     <!-- 
-      [Bloco de supressão de FP da 118005 — OneDrive self-update]
+      [Bloco de supressão de FP (Falso Positivo) da regra 118005 — OneDrive self-update]
       Escopo: regras 119811–119829.
       Objetivo: suprimir falsos positivos da regra 118005 decorrentes da autoatualização legítima do Microsoft OneDrive 
                 (criação/atualização de binários pelo OneDriveSetup.exe/OneDrive.exe nos caminhos padrão do perfil do usuário).
