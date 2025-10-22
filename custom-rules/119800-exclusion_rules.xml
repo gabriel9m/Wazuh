@@ -203,4 +203,99 @@
         <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
         <options>no_full_log</options>
     </rule>
+    
+    <!-- 
+      [Bloco de supressão de FP (Falso Positivo) da regra 118005 — Microsoft Store / AppX (WindowsApps)]
+      Escopo: regras 119831–119839.
+      Objetivo: suprimir falsos positivos da 118005 decorrentes da instalação/atualização legítima de apps UWP pela Microsoft Store
+                (serviços AppXSVC/ClipSVC executados por svchost.exe) que criam/atualizam executáveis/aliases em
+                %LOCALAPPDATA%\Microsoft\WindowsApps\* e %LOCALAPPDATA%\Microsoft\WindowsApps\Backup\* 
+                (ex.: SnippingTool.exe, Xbox*, Microsoft.*).
+      Efeito: level=0, group=whitelist, options=no_full_log (silenciado sobre a 118005).
+      Escopo técnico: <field name="win.eventdata.image"> C:\Windows\System32\svchost.exe 
+                      e <field name="win.eventdata.targetFilename"> sob os caminhos WindowsApps/Backup no perfil do usuário.
+      Limites: não cobre gravações fora do perfil do usuário, %ProgramFiles%/System32 ou caminhos não-Microsoft.
+      Observação: se a 118005 ou os fluxos/caminhos da Microsoft Store/AppX (WindowsApps) mudarem, REVISAR este bloco.
+      Última revisão: 2025-10-22.
+    -->
+    <rule id="119831" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Windows\\\\system32\\\\svchost\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\XboxPcAppAdminServer\.exe$</field>
+        <description>FP conhecido: criação legítima de aliases de execução em WindowsApps por serviços do Windows (svchost.exe) — silenciado sobre a 118005.</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+
+    <rule id="119832" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Windows\\\\system32\\\\svchost\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\Microsoft\.GamingApp_8wekyb3d8bbwe\\\\XboxPcAppAdminServer\.exe$</field>
+        <description>FP conhecido: criação legítima de aliases de execução em WindowsApps por serviços do Windows (svchost.exe) — silenciado sobre a 118005.</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+
+    <rule id="119833" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Windows\\\\system32\\\\svchost\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\SnippingTool\.exe$</field>
+        <description>FP conhecido: criação legítima de aliases de execução em WindowsApps por serviços do Windows (svchost.exe) — silenciado sobre a 118005.</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+
+    <rule id="119834" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Windows\\\\system32\\\\svchost\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\XboxPcAppCE\.exe$</field>
+        <description>FP conhecido: criação legítima de aliases de execução em WindowsApps por serviços do Windows (svchost.exe) — silenciado sobre a 118005.</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+
+    <rule id="119835" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Windows\\\\system32\\\\svchost\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\Backup\\\\Microsoft\.GamingApp_8wekyb3d8bbwe\\\\XboxPcAppAdminServer\.exe$</field>
+        <description>FP conhecido: criação legítima de aliases de execução em WindowsApps por serviços do Windows (svchost.exe) — silenciado sobre a 118005.</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+
+    <rule id="119836" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Windows\\\\system32\\\\svchost\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\Backup\\\\Microsoft\.ScreenSketch_8wekyb3d8bbwe\\\\SnippingTool\.exe$</field>
+        <description>FP conhecido: criação legítima de aliases de execução em WindowsApps por serviços do Windows (svchost.exe) — silenciado sobre a 118005.</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+
+    <rule id="119837" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Windows\\\\system32\\\\svchost\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\Backup\\\\XboxPcAppAdminServer\.exe$</field>
+        <description>FP conhecido: criação legítima de aliases de execução em WindowsApps por serviços do Windows (svchost.exe) — silenciado sobre a 118005.</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+
+    <rule id="119838" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Windows\\\\system32\\\\svchost\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\Microsoft\.GamingApp_8wekyb3d8bbwe\\\\XboxPcAppCE\.exe$</field>
+        <description>FP conhecido: criação legítima de aliases de execução em WindowsApps por serviços do Windows (svchost.exe) — silenciado sobre a 118005.</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
+
+    <rule id="119839" level="0">
+        <if_sid>118005</if_sid>
+        <field name="win.eventdata.image" type="pcre2">(?i)^[c-z]:\\\\Windows\\\\system32\\\\svchost\.exe$</field>
+        <field name="win.eventdata.targetFilename" type="pcre2">(?i)^[c-z]:\\\\Users\\\\[^\\\\]+\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\Microsoft\.ScreenSketch_8wekyb3d8bbwe\\\\SnippingTool\.exe$</field>
+        <description>FP conhecido: criação legítima de aliases de execução em WindowsApps por serviços do Windows (svchost.exe) — silenciado sobre a 118005.</description>
+        <group>windows,sysmon,filecreate,onedrive,whitelist,</group>
+        <options>no_full_log</options>
+    </rule>
 </group>
