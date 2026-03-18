@@ -1,0 +1,914 @@
+<group name="windows,sysmon,">
+
+  <rule id="101080" level="3">
+    <if_sid>61650</if_sid>
+    <description>Informacional - Sysmon EID 22 Consulta DNS: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dnsstats_input,severidade_informacional,alert,</group>
+  </rule>
+
+  <!-- TLDs com histórico recorrente de abuso -->
+  <rule id="101081" level="5">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:[a-z0-9-]+\.)+(?:top|xyz|shop|cc|xin|bond|vip|cfd|lol|life|online|site|info|ru)\.?$</field>
+    <description>Baixo - Consulta DNS para TLD com histórico de abuso: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,tld_risk,severidade_baixa,alert,</group>
+  </rule>
+
+  <!-- TLD de risco + vocabulário comum de phishing/fraude -->
+  <rule id="101082" level="8">
+    <if_sid>101081</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:log(?:[-_.]{0,2})?(?:in|on)|sign(?:[-_.]{0,2})?(?:in|on)|verif(?:y|ication)|secure|account|auth|mfa|pass(?:[-_.]{0,2})?word|wallet|invoice|billing|pay(?:[-_.]{0,2})?ment|gift|claim|delivery|track|support|update|m[i|1|l]cro(?:[-_.]{0,2})?soft|one(?:[-_.]{0,2})?drive|share(?:[-_.]{0,2})?point|adobe|docu|token|session|recovery|reset|payroll|boleto|nfe|nota|correios|bradesco|itau|caixa|gov\.br)</field>
+    <description>Médio - Consulta DNS com vocabulário suspeito relacionado a TLD de risco: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,tld_risk,phishing,smishing,severidade_media,alert,</group>
+  </rule>
+
+  <!-- TLD de risco consultado por LOLBIN/script host -->
+  <rule id="101083" level="11">
+    <if_sid>101081</if_sid>
+	<field name="win.eventdata.image" type="pcre2">(?i)\\\\(?:powershell|pwsh|cmd|wscript|cscript|mshta|rundll32|regsvr32|certutil|curl|bitsadmin|nslookup|schtasks|wmic|ftp)\.exe$</field>
+    <description>Alto - Processo suspeito consultando domínio em TLD de risco: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,tld_risk,process_suspicious,lolbin,severidade_alta,alert,</group>
+    <mitre>
+      <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <!-- Abuso anômalo de .arpa por aplicações de usuário https://www.infoblox.com/blog/threat-intelligence/abusing-arpa-the-tld-that-isnt-supposed-to-host-anything/ -->
+  <rule id="101084" level="5">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:^|\.)(?:in-addr|ip6)\.arpa\.?$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\(?:chrome|msedge|firefox|iexplore|outlook|teams|winword|excel|powerpnt)\.exe$</field>
+    <description>Baixo - Query .arpa por processo de usuário potencialmente associada a phishing: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,arpa_abuse,phishing,severidade_baixa,alert,</group>
+    <mitre>
+      <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <!-- Processo suspeito / LOLBin realizando DNS query -->
+  <rule id="101085" level="8">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\(?:powershell|pwsh)\.exe$</field>
+	<description>Médio - PowerShell realizando consulta DNS: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,process_suspicious_precise,powershell,t1059_001,severidade_media,alert,</group>
+    <mitre>
+      <id>T1059.001</id>
+    </mitre>
+  </rule>
+
+  <!-- DGA de menor comprimento: heurística mais fraca -->
+  <rule id="101086" level="4">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?=[a-z0-9]{10,15}\.)(?=[a-z0-9]*\d)(?=[a-z0-9]*[a-z])[a-z0-9]{10,15}|[b-df-hj-np-tv-z]{10,15})\.(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Baixo - Consulta DNS com padrão lexical potencialmente compatível com DGA de menor comprimento: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dga,dga_lexical,severidade_baixa,alert,</group>
+    <mitre>
+      <id>T1568.002</id>
+    </mitre>
+  </rule>
+
+  <!-- DGA de maior comprimento: heurística mais forte -->
+  <rule id="101087" level="7">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?=[a-z0-9]{16,63}\.)(?=[a-z0-9]*\d)(?=[a-z0-9]*[a-z])[a-z0-9]{16,63}|[b-df-hj-np-tv-z]{14,63})\.(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Médio - Consulta DNS com padrão lexical compatível com DGA: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dga,dga_lexical,severidade_media,alert,</group>
+    <mitre>
+      <id>T1568.002</id>
+    </mitre>
+  </rule>
+
+  <!-- DGA + QueryStatus NXDOMAIN -->
+  <rule id="101088" level="14">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?=[a-z0-9]{10,63}\.)(?=[a-z0-9]*\d)(?=[a-z0-9]*[a-z])[a-z0-9]{10,63}|[b-df-hj-np-tv-z]{10,63})\.(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <field name="win.eventdata.queryStatus" type="pcre2">^9003$</field>
+    <description>Alto - Consulta DNS com padrão DGA e QueryStatus NXDOMAIN: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dga,dga_lexical,nxdomain,severidade_alta,alert,</group>
+    <mitre>
+      <id>T1568.002</id>
+    </mitre>
+  </rule>
+
+  <!-- DGA + processo suspeito / LOLBin -->
+  <rule id="101089" level="5">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?=[a-z0-9]{10,63}\.)(?=[a-z0-9]*\d)(?=[a-z0-9]*[a-z])[a-z0-9]{10,63}|[b-df-hj-np-tv-z]{10,63})\.(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\(?:powershell|pwsh|cmd|wscript|cscript|mshta|rundll32|regsvr32|certutil|curl|bitsadmin|nslookup|schtasks|wmic|ftp|msiexec|installutil|msbuild|cmstp|hh|forfiles)\.exe$</field>
+    <description>Baixo - Processo suspeito consultando domínio com padrão DGA: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dga,dga_lexical,process_suspicious,lolbin,severidade_baixa,alert,</group>
+    <mitre>
+      <id>T1568.002</id>
+      <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <!-- Repetição de DGA + NXDOMAIN no mesmo processo -->
+  <rule id="101090" level="8" frequency="5" timeframe="120">
+    <if_matched_sid>101088</if_matched_sid>
+    <same_field>win.eventdata.processGuid</same_field>
+    <description>Médio - Processo realizou múltiplas consultas DNS com padrão DGA e QueryStatus NXDOMAIN em curto intervalo: Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dga,dga_lexical,nxdomain,beaconing,severidade_media,alert,</group>
+    <mitre>
+      <id>T1568.002</id>
+    </mitre>
+  </rule>
+
+  <!-- svchost.exe em contexto DGA/NXDOMAIN -->
+  <rule id="101091" level="11">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\svchost\.exe$</field>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?=[a-z0-9]{10,63}\.)(?=[a-z0-9]*\d)(?=[a-z0-9]*[a-z])[a-z0-9]{10,63}|[b-df-hj-np-tv-z]{10,63})\.(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <field name="win.eventdata.queryStatus" type="pcre2">^9003$</field>
+    <description>Alto - svchost.exe realizando consulta DNS com padrão DGA e QueryStatus NXDOMAIN: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dga,dga_lexical,nxdomain,svchost,severidade_alta,alert,</group>
+    <mitre>
+      <id>T1568.002</id>
+    </mitre>
+  </rule>
+
+  <!-- Repetição de DGA/NXDOMAIN por svchost.exe -->
+  <rule id="101092" level="11" frequency="4" timeframe="120">
+    <if_matched_sid>101091</if_matched_sid>
+    <same_field>win.eventdata.processGuid</same_field>
+    <description>Alto - svchost.exe realizou múltiplas consultas DNS com padrão DGA e QueryStatus NXDOMAIN em curto intervalo: Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dga,dga_lexical,nxdomain,svchost,beaconing,severidade_alta,alert,</group>
+    <mitre>
+      <id>T1568.002</id>
+    </mitre>
+  </rule>
+
+  <!-- Navegador em contexto DGA/NXDOMAIN -->
+  <rule id="101093" level="11">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\(?:chrome|msedge|firefox|iexplore|brave)\.exe$</field>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?=[a-z0-9]{10,63}\.)(?=[a-z0-9]*\d)(?=[a-z0-9]*[a-z])[a-z0-9]{10,63}|[b-df-hj-np-tv-z]{10,63})\.(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <field name="win.eventdata.queryStatus" type="pcre2">^9003$</field>
+    <description>Alto - Navegador realizando consulta DNS com padrão DGA e QueryStatus NXDOMAIN: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dga,dga_lexical,nxdomain,browser,severidade_alta,alert,</group>
+    <mitre>
+      <id>T1568.002</id>
+    </mitre>
+  </rule>
+
+  <!-- Repetição de DGA/NXDOMAIN por navegador -->
+  <rule id="101094" level="8" frequency="4" timeframe="120">
+    <if_matched_sid>101093</if_matched_sid>
+    <same_field>win.eventdata.processGuid</same_field>
+    <description>Médio - Navegador realizou múltiplas consultas DNS com padrão DGA e QueryStatus NXDOMAIN em curto intervalo: Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dga,dga_lexical,nxdomain,browser,beaconing,severidade_media,alert,</group>
+    <mitre>
+      <id>T1568.002</id>
+    </mitre>
+  </rule>
+  
+    <!-- Muitos subdomínios: heurística inicial para possível DNS tunneling -->
+  <rule id="101095" level="11">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Alto - Consulta DNS para domínio com muitos subdomínios: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,severidade_alta,alert,</group>
+    <mitre>
+      <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <!-- Muitos subdomínios + pelo menos um label longo, compatível com chunk/encoding -->
+  <rule id="101096" level="5">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?=(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$)(?=.*(?:^|\.)[a-z0-9]{20,63}\.)(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Baixo - Consulta DNS com muitos subdomínios e label longo compatível com possível tunneling: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,encoded_label,severidade_baixa,alert,</group>
+    <mitre>
+      <id>T1071.004</id>
+      <id>T1048.003</id>
+    </mitre>
+  </rule>
+
+  <!-- Repetição de deep subdomains + label longo no mesmo processo -->
+  <rule id="101097" level="8" frequency="4" timeframe="60">
+    <if_matched_sid>101096</if_matched_sid>
+    <same_field>win.eventdata.processGuid</same_field>
+    <description>Médio - Processo realizou múltiplas consultas DNS com muitos subdomínios e label longo em curto intervalo: Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,encoded_label,beaconing,severidade_media,alert,</group>
+    <mitre>
+      <id>T1071.004</id>
+      <id>T1048.003</id>
+    </mitre>
+  </rule>
+  
+    <!-- Alto número de queries para um único domínio -->
+  <rule id="101098" level="8" frequency="12" timeframe="60">
+    <if_matched_sid>101080</if_matched_sid>
+    <same_field>win.eventdata.queryName</same_field>
+    <description>Médio - Alto número de consultas DNS para um único domínio em curto intervalo: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_volume,single_domain,beaconing,severidade_media,alert,</group>
+    <mitre>
+      <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <!-- DNS query feita por processo em diretório suspeito -->
+  <rule id="101099" level="11">
+    <if_sid>101080</if_sid>                         
+    <field name="win.eventdata.image" type="pcre2">(?i)^[a-z]:\\\\(?:users\\\\[^\\\\]+\\\\appdata\\\\(?:local\\\\temp|roaming)\\\\|users\\\\[^\\\\]+\\\\downloads\\\\|users\\\\[^\\\\]+\\\\desktop\\\\|users\\\\public\\\\|programdata\\\\|windows\\\\temp\\\\|temp\\\\|perflogs\\\\|\\\\\$recycle\.bin\\\\).+\.exe$</field>
+    <description>Alto - Consulta DNS feita por processo executado em diretório suspeito: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,suspicious_path,user_writable,dns_execution,severidade_alta,alert,</group>
+    <mitre>
+      <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <!-- DNS query por processo com nome legítimo executado em diretório suspeito -->
+  <rule id="101100" level="14">
+    <if_sid>101099</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\(?:svchost|lsass|services|explorer|chrome|msedge|firefox|brave|powershell|pwsh|cmd|rundll32|regsvr32|mshta|certutil|msiexec)\.exe$</field>
+    <description>Crítico - Consulta DNS feita por processo com nome legítimo executado em diretório suspeito: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,suspicious_path,user_writable,masquerade,dns_execution,severidade_critica,alert,</group>
+    <mitre>
+      <id>T1071.004</id>
+      <id>T1036.005</id>
+    </mitre>
+  </rule>
+  
+  <rule id="101101" level="5">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\.exe$</field>
+    <field name="win.eventdata.image" type="pcre2" negate="yes">(?i)^C:\\\\(Windows\\\\System32|Program Files( \(x86\))?)\\\\</field>
+    <description>Baixo - Binário executando consulta DNS fora de diretórios protegidos</description>
+    <group>sysmon_eid22,suspicious_path,user_writable,masquerade,dns_execution,severidade_baixa,alert,</group>
+    <mitre>
+      <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <!-- Windows Command Shell -->
+  <rule id="101102" level="5">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\cmd\.exe$</field>
+    <description>Baixo - cmd.exe realizando consulta DNS: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,process_suspicious_precise,cmd,t1059_003,severidade_baixa,alert,</group>
+    <mitre>
+      <id>T1059.003</id>
+    </mitre>
+  </rule>
+
+  <!-- Script hosts genéricos: EID22 não diferencia com segurança VBScript de JScript -->
+  <rule id="101103" level="8">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\(?:wscript|cscript)\.exe$</field>
+    <description>Médio - Script host realizando consulta DNS: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,process_suspicious_precise,script_host,t1059_generic,severidade_media,alert,</group>
+    <mitre>
+      <id>T1059</id>
+    </mitre>
+  </rule>
+
+  <!-- Mshta -->
+  <rule id="101104" level="11">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\mshta\.exe$</field>
+    <description>Alto - mshta.exe realizando consulta DNS: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,process_suspicious_precise,mshta,t1218_005,severidade_alta,alert,</group>
+    <mitre>
+      <id>T1218.005</id>
+    </mitre>
+  </rule>
+
+  <!-- Regsvr32 -->
+  <rule id="101105" level="11">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\regsvr32\.exe$</field>
+    <description>Alto - regsvr32.exe realizando consulta DNS: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,process_suspicious_precise,regsvr32,t1218_010,severidade_alta,alert,</group>
+    <mitre>
+      <id>T1218.010</id>
+    </mitre>
+  </rule>
+
+  <!-- Rundll32 -->
+  <rule id="101106" level="8">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\rundll32\.exe$</field>
+    <description>Médio - rundll32.exe realizando consulta DNS: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,process_suspicious_precise,rundll32,t1218_011,severidade_media,alert,</group>
+    <mitre>
+      <id>T1218.011</id>
+    </mitre>
+  </rule>
+
+  <!-- CMSTP -->
+  <rule id="101107" level="8">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\cmstp\.exe$</field>
+    <description>Médio - cmstp.exe realizando consulta DNS: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,process_suspicious_precise,cmstp,t1218_003,severidade_media,alert,</group>
+    <mitre>
+      <id>T1218.003</id>
+    </mitre>
+  </rule>
+
+  <!-- InstallUtil -->
+  <rule id="101108" level="8">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\installutil(?:\.exe)?$</field>
+    <description>Médio - InstallUtil realizando consulta DNS: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,process_suspicious_precise,installutil,t1218_004,severidade_media,alert,</group>
+    <mitre>
+      <id>T1218.004</id>
+    </mitre>
+  </rule>
+
+  <!-- Msiexec -->
+  <rule id="101109" level="11">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\msiexec\.exe$</field>
+    <description>Alto - msiexec.exe realizando consulta DNS: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,process_suspicious_precise,msiexec,t1218_007,severidade_alta,alert,</group>
+    <mitre>
+      <id>T1218.007</id>
+    </mitre>
+  </rule>
+
+  <!-- HH / CHM -->
+  <rule id="101110" level="11">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\hh\.exe$</field>
+    <description>Alto - hh.exe realizando consulta DNS: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,process_suspicious_precise,hh,t1218_001,severidade_alta,alert,</group>
+    <mitre>
+      <id>T1218.001</id>
+    </mitre>
+  </rule>
+
+  <!-- MSBuild -->
+  <rule id="101111" level="11">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\msbuild\.exe$</field>
+    <description>Alto - msbuild.exe realizando consulta DNS: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,process_suspicious_precise,msbuild,t1127_001,severidade_alta,alert,</group>
+    <mitre>
+      <id>T1127.001</id>
+    </mitre>
+  </rule>
+
+  <!-- Utilitários administrativos / de rede: manter genérico -->
+  <rule id="101112" level="11">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\(?:certutil|curl|bitsadmin|nslookup|schtasks|wmic|ftp|forfiles)\.exe$</field>
+    <description>Alto - Utilitário administrativo/de rede realizando consulta DNS: $(win.eventdata.queryName) | Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,process_suspicious_precise,admin_net_util,severidade_alta,alert,</group>
+  </rule>
+  
+  <rule id="101113" level="11">
+    <if_sid>101085</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:log(?:[-_.]{0,2})?(?:in|on)|sign(?:[-_.]{0,2})?(?:in|on)|verif(?:y|ication)|secure|account|auth|mfa|pass(?:[-_.]{0,2})?word|wallet|invoice|billing|pay(?:[-_.]{0,2})?ment|gift|claim|delivery|track|support|update|m[i1l]cro(?:[-_.]{0,2})?soft|one(?:[-_.]{0,2})?drive|share(?:[-_.]{0,2})?point|adobe|docu|token|session|recovery|reset|payroll|boleto|nfe|nota|correios|bradesco|itau|caixa|gov\.br)</field>
+    <description>Alto - PowerShell consultando domínio com vocabulário de phishing/fraude: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,powershell,phishing,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1059.001</id>
+    </mitre>
+  </rule>
+
+  <rule id="101114" level="8">
+    <if_sid>101102</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:log(?:[-_.]{0,2})?(?:in|on)|sign(?:[-_.]{0,2})?(?:in|on)|verif(?:y|ication)|secure|account|auth|mfa|pass(?:[-_.]{0,2})?word|wallet|invoice|billing|pay(?:[-_.]{0,2})?ment|gift|claim|delivery|track|support|update|m[i1l]cro(?:[-_.]{0,2})?soft|one(?:[-_.]{0,2})?drive|share(?:[-_.]{0,2})?point|adobe|docu|token|session|recovery|reset|payroll|boleto|nfe|nota|correios|bradesco|itau|caixa|gov\.br)</field>
+    <description>Médio - cmd.exe consultando domínio com vocabulário de phishing/fraude: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,cmd,phishing,severidade_media,alert,</group>
+    <mitre>
+	  <id>T1059.003</id>
+    </mitre>
+  </rule>
+
+  <rule id="101115" level="8">
+    <if_sid>101103</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:log(?:[-_.]{0,2})?(?:in|on)|sign(?:[-_.]{0,2})?(?:in|on)|verif(?:y|ication)|secure|account|auth|mfa|pass(?:[-_.]{0,2})?word|wallet|invoice|billing|pay(?:[-_.]{0,2})?ment|gift|claim|delivery|track|support|update|m[i1l]cro(?:[-_.]{0,2})?soft|one(?:[-_.]{0,2})?drive|share(?:[-_.]{0,2})?point|adobe|docu|token|session|recovery|reset|payroll|boleto|nfe|nota|correios|bradesco|itau|caixa|gov\.br)</field>
+    <description>Médio - Script host consultando domínio com vocabulário de phishing/fraude: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,script_host,phishing,severidade_media,alert,</group>
+    <mitre>
+	  <id>T1059</id>
+    </mitre>
+  </rule>
+
+  <rule id="101116" level="11">
+    <if_sid>101104</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:log(?:[-_.]{0,2})?(?:in|on)|sign(?:[-_.]{0,2})?(?:in|on)|verif(?:y|ication)|secure|account|auth|mfa|pass(?:[-_.]{0,2})?word|wallet|invoice|billing|pay(?:[-_.]{0,2})?ment|gift|claim|delivery|track|support|update|m[i1l]cro(?:[-_.]{0,2})?soft|one(?:[-_.]{0,2})?drive|share(?:[-_.]{0,2})?point|adobe|docu|token|session|recovery|reset|payroll|boleto|nfe|nota|correios|bradesco|itau|caixa|gov\.br)</field>
+    <description>Alto - mshta.exe consultando domínio com vocabulário de phishing/fraude: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,mshta,phishing,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.005</id>
+    </mitre>
+  </rule>
+
+  <rule id="101117" level="11">
+    <if_sid>101105</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:log(?:[-_.]{0,2})?(?:in|on)|sign(?:[-_.]{0,2})?(?:in|on)|verif(?:y|ication)|secure|account|auth|mfa|pass(?:[-_.]{0,2})?word|wallet|invoice|billing|pay(?:[-_.]{0,2})?ment|gift|claim|delivery|track|support|update|m[i1l]cro(?:[-_.]{0,2})?soft|one(?:[-_.]{0,2})?drive|share(?:[-_.]{0,2})?point|adobe|docu|token|session|recovery|reset|payroll|boleto|nfe|nota|correios|bradesco|itau|caixa|gov\.br)</field>
+    <description>Alto - regsvr32.exe consultando domínio com vocabulário de phishing/fraude: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,regsvr32,phishing,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.010</id>
+    </mitre>
+  </rule>
+
+  <rule id="101118" level="11">
+    <if_sid>101106</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:log(?:[-_.]{0,2})?(?:in|on)|sign(?:[-_.]{0,2})?(?:in|on)|verif(?:y|ication)|secure|account|auth|mfa|pass(?:[-_.]{0,2})?word|wallet|invoice|billing|pay(?:[-_.]{0,2})?ment|gift|claim|delivery|track|support|update|m[i1l]cro(?:[-_.]{0,2})?soft|one(?:[-_.]{0,2})?drive|share(?:[-_.]{0,2})?point|adobe|docu|token|session|recovery|reset|payroll|boleto|nfe|nota|correios|bradesco|itau|caixa|gov\.br)</field>
+    <description>Alto - rundll32.exe consultando domínio com vocabulário de phishing/fraude: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,rundll32,phishing,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.011</id>
+    </mitre>
+  </rule>
+
+  <rule id="101119" level="11">
+    <if_sid>101107</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:log(?:[-_.]{0,2})?(?:in|on)|sign(?:[-_.]{0,2})?(?:in|on)|verif(?:y|ication)|secure|account|auth|mfa|pass(?:[-_.]{0,2})?word|wallet|invoice|billing|pay(?:[-_.]{0,2})?ment|gift|claim|delivery|track|support|update|m[i1l]cro(?:[-_.]{0,2})?soft|one(?:[-_.]{0,2})?drive|share(?:[-_.]{0,2})?point|adobe|docu|token|session|recovery|reset|payroll|boleto|nfe|nota|correios|bradesco|itau|caixa|gov\.br)</field>
+    <description>Alto - cmstp.exe consultando domínio com vocabulário de phishing/fraude: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,cmstp,phishing,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.003</id>
+    </mitre>
+  </rule>
+
+  <rule id="101120" level="11">
+    <if_sid>101108</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:log(?:[-_.]{0,2})?(?:in|on)|sign(?:[-_.]{0,2})?(?:in|on)|verif(?:y|ication)|secure|account|auth|mfa|pass(?:[-_.]{0,2})?word|wallet|invoice|billing|pay(?:[-_.]{0,2})?ment|gift|claim|delivery|track|support|update|m[i1l]cro(?:[-_.]{0,2})?soft|one(?:[-_.]{0,2})?drive|share(?:[-_.]{0,2})?point|adobe|docu|token|session|recovery|reset|payroll|boleto|nfe|nota|correios|bradesco|itau|caixa|gov\.br)</field>
+    <description>Alto - InstallUtil consultando domínio com vocabulário de phishing/fraude: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,installutil,phishing,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101121" level="11">
+    <if_sid>101109</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:log(?:[-_.]{0,2})?(?:in|on)|sign(?:[-_.]{0,2})?(?:in|on)|verif(?:y|ication)|secure|account|auth|mfa|pass(?:[-_.]{0,2})?word|wallet|invoice|billing|pay(?:[-_.]{0,2})?ment|gift|claim|delivery|track|support|update|m[i1l]cro(?:[-_.]{0,2})?soft|one(?:[-_.]{0,2})?drive|share(?:[-_.]{0,2})?point|adobe|docu|token|session|recovery|reset|payroll|boleto|nfe|nota|correios|bradesco|itau|caixa|gov\.br)</field>
+    <description>Alto - msiexec.exe consultando domínio com vocabulário de phishing/fraude: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,msiexec,phishing,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.007</id>
+    </mitre>
+  </rule>
+
+  <rule id="101122" level="11">
+    <if_sid>101110</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:log(?:[-_.]{0,2})?(?:in|on)|sign(?:[-_.]{0,2})?(?:in|on)|verif(?:y|ication)|secure|account|auth|mfa|pass(?:[-_.]{0,2})?word|wallet|invoice|billing|pay(?:[-_.]{0,2})?ment|gift|claim|delivery|track|support|update|m[i1l]cro(?:[-_.]{0,2})?soft|one(?:[-_.]{0,2})?drive|share(?:[-_.]{0,2})?point|adobe|docu|token|session|recovery|reset|payroll|boleto|nfe|nota|correios|bradesco|itau|caixa|gov\.br)</field>
+    <description>Alto - hh.exe consultando domínio com vocabulário de phishing/fraude: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,hh,phishing,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.001</id>
+    </mitre>
+  </rule>
+
+  <rule id="101123" level="11">
+    <if_sid>101111</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:log(?:[-_.]{0,2})?(?:in|on)|sign(?:[-_.]{0,2})?(?:in|on)|verif(?:y|ication)|secure|account|auth|mfa|pass(?:[-_.]{0,2})?word|wallet|invoice|billing|pay(?:[-_.]{0,2})?ment|gift|claim|delivery|track|support|update|m[i1l]cro(?:[-_.]{0,2})?soft|one(?:[-_.]{0,2})?drive|share(?:[-_.]{0,2})?point|adobe|docu|token|session|recovery|reset|payroll|boleto|nfe|nota|correios|bradesco|itau|caixa|gov\.br)</field>
+    <description>Alto - msbuild.exe consultando domínio com vocabulário de phishing/fraude: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,msbuild,phishing,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1127.001</id>
+    </mitre>
+  </rule>
+
+  <rule id="101124" level="11">
+    <if_sid>101112</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:log(?:[-_.]{0,2})?(?:in|on)|sign(?:[-_.]{0,2})?(?:in|on)|verif(?:y|ication)|secure|account|auth|mfa|pass(?:[-_.]{0,2})?word|wallet|invoice|billing|pay(?:[-_.]{0,2})?ment|gift|claim|delivery|track|support|update|m[i1l]cro(?:[-_.]{0,2})?soft|one(?:[-_.]{0,2})?drive|share(?:[-_.]{0,2})?point|adobe|docu|token|session|recovery|reset|payroll|boleto|nfe|nota|correios|bradesco|itau|caixa|gov\.br)</field>
+    <description>Alto - Utilitário administrativo/de rede consultando domínio com vocabulário de phishing/fraude: $(win.eventdata.queryName) | Proc=$(win.eventdata.image)</description>
+    <group>sysmon_eid22,process_suspicious,admin_net_util,phishing,severidade_alta,alert,</group>
+  </rule>
+  
+  <rule id="101125" level="11">
+    <if_sid>101085</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:^|.*\.)(?:duckdns\.org|no-ip\.(?:org|com)|ddns\.net|hopto\.org|zapto\.org|myftp\.(?:org|biz)|serve(?:http|ftp)\.com|dynamic-dns\.net|ngrok(?:-free)?\.app|ngrok\.io|trycloudflare\.com)\.?$</field>
+    <description>Alto - PowerShell consultando provedor DDNS/túnel: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,powershell,ddns,tunnel,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1059.001</id>
+	  <id>T1071.004</id>
+	</mitre>
+  </rule>
+
+  <rule id="101126" level="11">
+    <if_sid>101102</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:^|.*\.)(?:duckdns\.org|no-ip\.(?:org|com)|ddns\.net|hopto\.org|zapto\.org|myftp\.(?:org|biz)|serve(?:http|ftp)\.com|dynamic-dns\.net|ngrok(?:-free)?\.app|ngrok\.io|trycloudflare\.com)\.?$</field>
+    <description>Alto - cmd.exe consultando provedor DDNS/túnel: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,cmd,ddns,tunnel,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1059.003</id>
+	  <id>T1071.004</id>
+	</mitre>
+  </rule>
+
+  <rule id="101127" level="11">
+    <if_sid>101103</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:^|.*\.)(?:duckdns\.org|no-ip\.(?:org|com)|ddns\.net|hopto\.org|zapto\.org|myftp\.(?:org|biz)|serve(?:http|ftp)\.com|dynamic-dns\.net|ngrok(?:-free)?\.app|ngrok\.io|trycloudflare\.com)\.?$</field>
+    <description>Alto - Script host consultando provedor DDNS/túnel: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,script_host,ddns,tunnel,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1059</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101128" level="11">
+    <if_sid>101104</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:^|.*\.)(?:duckdns\.org|no-ip\.(?:org|com)|ddns\.net|hopto\.org|zapto\.org|myftp\.(?:org|biz)|serve(?:http|ftp)\.com|dynamic-dns\.net|ngrok(?:-free)?\.app|ngrok\.io|trycloudflare\.com)\.?$</field>
+    <description>Alto - mshta.exe consultando provedor DDNS/túnel: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,mshta,ddns,tunnel,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.005</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101129" level="8">
+    <if_sid>101105</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:^|.*\.)(?:duckdns\.org|no-ip\.(?:org|com)|ddns\.net|hopto\.org|zapto\.org|myftp\.(?:org|biz)|serve(?:http|ftp)\.com|dynamic-dns\.net|ngrok(?:-free)?\.app|ngrok\.io|trycloudflare\.com)\.?$</field>
+    <description>Médio - regsvr32.exe consultando provedor DDNS/túnel: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,regsvr32,ddns,tunnel,severidade_media,alert,</group>
+    <mitre>
+	  <id>T1218.010</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101130" level="11">
+    <if_sid>101106</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:^|.*\.)(?:duckdns\.org|no-ip\.(?:org|com)|ddns\.net|hopto\.org|zapto\.org|myftp\.(?:org|biz)|serve(?:http|ftp)\.com|dynamic-dns\.net|ngrok(?:-free)?\.app|ngrok\.io|trycloudflare\.com)\.?$</field>
+    <description>Alto - rundll32.exe consultando provedor DDNS/túnel: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,rundll32,ddns,tunnel,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.011</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101131" level="11">
+    <if_sid>101107</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:^|.*\.)(?:duckdns\.org|no-ip\.(?:org|com)|ddns\.net|hopto\.org|zapto\.org|myftp\.(?:org|biz)|serve(?:http|ftp)\.com|dynamic-dns\.net|ngrok(?:-free)?\.app|ngrok\.io|trycloudflare\.com)\.?$</field>
+    <description>Alto - cmstp.exe consultando provedor DDNS/túnel: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,cmstp,ddns,tunnel,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.003</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101132" level="11">
+    <if_sid>101108</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:^|.*\.)(?:duckdns\.org|no-ip\.(?:org|com)|ddns\.net|hopto\.org|zapto\.org|myftp\.(?:org|biz)|serve(?:http|ftp)\.com|dynamic-dns\.net|ngrok(?:-free)?\.app|ngrok\.io|trycloudflare\.com)\.?$</field>
+    <description>Alto - InstallUtil consultando provedor DDNS/túnel: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,installutil,ddns,tunnel,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.004</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101133" level="11">
+    <if_sid>101109</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:^|.*\.)(?:duckdns\.org|no-ip\.(?:org|com)|ddns\.net|hopto\.org|zapto\.org|myftp\.(?:org|biz)|serve(?:http|ftp)\.com|dynamic-dns\.net|ngrok(?:-free)?\.app|ngrok\.io|trycloudflare\.com)\.?$</field>
+    <description>Alto - msiexec.exe consultando provedor DDNS/túnel: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,msiexec,ddns,tunnel,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.007</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101134" level="11">
+    <if_sid>101110</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:^|.*\.)(?:duckdns\.org|no-ip\.(?:org|com)|ddns\.net|hopto\.org|zapto\.org|myftp\.(?:org|biz)|serve(?:http|ftp)\.com|dynamic-dns\.net|ngrok(?:-free)?\.app|ngrok\.io|trycloudflare\.com)\.?$</field>
+    <description>Alto - hh.exe consultando provedor DDNS/túnel: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,hh,ddns,tunnel,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.001</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101135" level="11">
+    <if_sid>101111</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:^|.*\.)(?:duckdns\.org|no-ip\.(?:org|com)|ddns\.net|hopto\.org|zapto\.org|myftp\.(?:org|biz)|serve(?:http|ftp)\.com|dynamic-dns\.net|ngrok(?:-free)?\.app|ngrok\.io|trycloudflare\.com)\.?$</field>
+    <description>Alto - msbuild.exe consultando provedor DDNS/túnel: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,msbuild,ddns,tunnel,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1127.001</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101136" level="11">
+    <if_sid>101112</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(?:^|.*\.)(?:duckdns\.org|no-ip\.(?:org|com)|ddns\.net|hopto\.org|zapto\.org|myftp\.(?:org|biz)|serve(?:http|ftp)\.com|dynamic-dns\.net|ngrok(?:-free)?\.app|ngrok\.io|trycloudflare\.com)\.?$</field>
+    <description>Alto - Utilitário administrativo/de rede consultando provedor DDNS/túnel: $(win.eventdata.queryName) | Proc=$(win.eventdata.image)</description>
+    <group>sysmon_eid22,process_suspicious,admin_net_util,ddns,tunnel,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+  
+  <rule id="101137" level="11">
+    <if_sid>101085</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Alto - PowerShell consultando domínio com muitos subdomínios: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,powershell,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1059.001</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101138" level="11">
+    <if_sid>101102</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Alto - cmd.exe consultando domínio com muitos subdomínios: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,cmd,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1059.003</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101139" level="11">
+    <if_sid>101103</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Alto - Script host consultando domínio com muitos subdomínios: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,script_host,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1059</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101140" level="11">
+    <if_sid>101104</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Alto - mshta.exe consultando domínio com muitos subdomínios: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,mshta,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.005</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101141" level="8">
+    <if_sid>101105</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Médio - regsvr32.exe consultando domínio com muitos subdomínios: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,regsvr32,severidade_media,alert,</group>
+    <mitre>
+	  <id>T1218.010</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101142" level="11">
+    <if_sid>101106</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Alto - rundll32.exe consultando domínio com muitos subdomínios: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,rundll32,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.011</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101143" level="11">
+    <if_sid>101107</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Alto - cmstp.exe consultando domínio com muitos subdomínios: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,cmstp,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.003</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101144" level="11">
+    <if_sid>101108</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Alto - InstallUtil consultando domínio com muitos subdomínios: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,installutil,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.004</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101145" level="11">
+    <if_sid>101109</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Alto - msiexec.exe consultando domínio com muitos subdomínios: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,msiexec,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.007</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101146" level="11">
+    <if_sid>101110</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Alto - hh.exe consultando domínio com muitos subdomínios: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,hh,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.001</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101147" level="11">
+    <if_sid>101111</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Alto - msbuild.exe consultando domínio com muitos subdomínios: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,msbuild,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1127.001</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101148" level="11">
+    <if_sid>101112</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^(?:(?:xn--)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){3,}(?:[a-z]{2,24}|xn--[a-z0-9-]{2,59})\.?$</field>
+    <description>Alto - Utilitário administrativo/de rede consultando domínio com muitos subdomínios: $(win.eventdata.queryName) | Proc=$(win.eventdata.image)</description>
+    <group>sysmon_eid22,dns_tunneling,deep_subdomains,admin_net_util,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+  
+  <rule id="101149" level="11" frequency="8" timeframe="60">
+    <if_matched_sid>101085</if_matched_sid>
+    <same_field>win.eventdata.queryName</same_field>
+    <description>Alto - PowerShell realizou alto número de consultas DNS para um único domínio em curto intervalo: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_volume,single_domain,beaconing,powershell,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1059.001</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101150" level="11" frequency="8" timeframe="60">
+    <if_matched_sid>101102</if_matched_sid>
+    <same_field>win.eventdata.queryName</same_field>
+    <description>Alto - cmd.exe realizou alto número de consultas DNS para um único domínio em curto intervalo: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_volume,single_domain,beaconing,cmd,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1059.003</id>
+	  <id>T1071.004</id>
+    </mitre>
+  </rule>
+
+  <rule id="101151" level="11" frequency="8" timeframe="60">
+    <if_matched_sid>101103</if_matched_sid>
+    <same_field>win.eventdata.queryName</same_field>
+    <description>Alto - Script host realizou alto número de consultas DNS para um único domínio em curto intervalo: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_volume,single_domain,beaconing,script_host,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1059</id>
+	  <id>T1071.004</id>
+	</mitre>
+  </rule>
+
+  <rule id="101152" level="11" frequency="8" timeframe="60">
+    <if_matched_sid>101104</if_matched_sid>
+    <same_field>win.eventdata.queryName</same_field>
+    <description>Alto - mshta.exe realizou alto número de consultas DNS para um único domínio em curto intervalo: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_volume,single_domain,beaconing,mshta,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.005</id>
+	  <id>T1071.004</id>
+	</mitre>
+  </rule>
+
+  <rule id="101153" level="8" frequency="8" timeframe="60">
+    <if_matched_sid>101105</if_matched_sid>
+    <same_field>win.eventdata.queryName</same_field>
+    <description>Médio - regsvr32.exe realizou alto número de consultas DNS para um único domínio em curto intervalo: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_volume,single_domain,beaconing,regsvr32,severidade_media,alert,</group>
+    <mitre>
+	  <id>T1218.010</id>
+	  <id>T1071.004</id>
+	</mitre>
+  </rule>
+
+  <rule id="101154" level="11" frequency="8" timeframe="60">
+    <if_matched_sid>101106</if_matched_sid>
+    <same_field>win.eventdata.queryName</same_field>
+    <description>Alto - rundll32.exe realizou alto número de consultas DNS para um único domínio em curto intervalo: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_volume,single_domain,beaconing,rundll32,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.011</id>
+	  <id>T1071.004</id>
+	</mitre>
+  </rule>
+
+  <rule id="101155" level="11" frequency="8" timeframe="60">
+    <if_matched_sid>101107</if_matched_sid>
+    <same_field>win.eventdata.queryName</same_field>
+    <description>Alto - cmstp.exe realizou alto número de consultas DNS para um único domínio em curto intervalo: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_volume,single_domain,beaconing,cmstp,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.003</id>
+	  <id>T1071.004</id>
+	</mitre>
+  </rule>
+
+  <rule id="101156" level="11" frequency="8" timeframe="60">
+    <if_matched_sid>101108</if_matched_sid>
+    <same_field>win.eventdata.queryName</same_field>
+    <description>Alto - InstallUtil realizou alto número de consultas DNS para um único domínio em curto intervalo: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_volume,single_domain,beaconing,installutil,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.004</id>
+	  <id>T1071.004</id>
+	</mitre>
+  </rule>
+
+  <rule id="101157" level="11" frequency="8" timeframe="60">
+    <if_matched_sid>101109</if_matched_sid>
+    <same_field>win.eventdata.queryName</same_field>
+    <description>Alto - msiexec.exe realizou alto número de consultas DNS para um único domínio em curto intervalo: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_volume,single_domain,beaconing,msiexec,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.007</id>
+	  <id>T1071.004</id>
+	</mitre>
+  </rule>
+
+  <rule id="101158" level="11" frequency="8" timeframe="60">
+    <if_matched_sid>101110</if_matched_sid>
+    <same_field>win.eventdata.queryName</same_field>
+    <description>Alto - hh.exe realizou alto número de consultas DNS para um único domínio em curto intervalo: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_volume,single_domain,beaconing,hh,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1218.001</id>
+	  <id>T1071.004</id>
+	</mitre>
+  </rule>
+
+  <rule id="101159" level="11" frequency="8" timeframe="60">
+    <if_matched_sid>101111</if_matched_sid>
+    <same_field>win.eventdata.queryName</same_field>
+    <description>Alto - msbuild.exe realizou alto número de consultas DNS para um único domínio em curto intervalo: $(win.eventdata.queryName) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,dns_volume,single_domain,beaconing,msbuild,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1127.001</id>
+	  <id>T1071.004</id>
+	</mitre>
+  </rule>
+
+  <rule id="101160" level="11" frequency="8" timeframe="60">
+    <if_matched_sid>101112</if_matched_sid>
+    <same_field>win.eventdata.queryName</same_field>
+    <description>Alto - Utilitário administrativo/de rede realizou alto número de consultas DNS para um único domínio em curto intervalo: $(win.eventdata.queryName) | Proc=$(win.eventdata.image)</description>
+    <group>sysmon_eid22,dns_volume,single_domain,beaconing,admin_net_util,severidade_alta,alert,</group>
+    <mitre>
+	  <id>T1071.004</id>
+	</mitre>
+  </rule>
+  
+  <rule id="101161" level="11" frequency="4" timeframe="60">
+    <if_matched_group>process_suspicious_precise</if_matched_group>
+    <same_field>win.eventdata.processGuid</same_field>
+    <description>Alto - Processo suspeito/preciso realizou múltiplas consultas DNS em curto intervalo: Proc=$(win.eventdata.image) | User=$(win.eventdata.user)</description>
+    <group>sysmon_eid22,process_suspicious,process_suspicious_precise,beaconing,severidade_alta,alert,</group>
+    <mitre>
+      <id>T1071.004</id>
+    </mitre>
+  </rule>
+  
+  <!--
+    EXCEÇÕES ESPECÍFICAS DO AMBIENTE
+    A partir da regra 101180, este bloco contém exceções criadas com base no comportamento observado no ambiente monitorado.
+
+    Objetivo:
+    - Reduzir ruído operacional e volume de alertas benignos relacionados ao Sysmon EID 22
+    - Suprimir eventos já validados como esperados no contexto do ambiente
+    - Manter maior foco analítico em consultas DNS potencialmente suspeitas
+
+    Observações:
+    - Estas exceções não são universais e devem ser revisadas antes de uso em outro ambiente
+    - Sempre que possível, as exceções foram condicionadas por Image + QueryName para evitar supressões excessivamente amplas
+    - Toda nova exceção deve ser periodicamente reavaliada para evitar perda de visibilidade
+  -->
+  
+  <rule id="101180" level="0">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)^C:\\\\Program Files\\\\TeamViewer\\\\TeamViewer_Service\.exe$</field>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^router[0-9]+\.teamviewer\.com\.?$</field>
+    <description>Exceção - TeamViewer_Service.exe em Program Files consultando router[0-9]+.teamviewer.com</description>
+    <group>sysmon_eid22,exception,teamviewer,</group>
+  </rule>
+  
+  <rule id="101181" level="0">
+    <if_sid>101080</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)^C:\\\\Program Files \(x86\)\\\\TeamViewer\\\\TeamViewer_Service\.exe$</field>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)^router[0-9]+\.teamviewer\.com\.?$</field>
+    <description>Exceção - TeamViewer_Service.exe em Program Files (x86) consultando router[0-9]+.teamviewer.com</description>
+    <group>sysmon_eid22,exception,teamviewer,</group>
+  </rule>
+  
+</group>
