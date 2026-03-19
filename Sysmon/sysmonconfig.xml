@@ -238,6 +238,68 @@
           <Image condition="is">C:\Program Files\Microsoft OneDrive\OneDrive.exe</Image>
           <QueryName condition="is">ecs.office.com</QueryName>
         </Rule>
+        <!-- OneDrive em AppData\Local\Microsoft\OneDrive -> conexões esperadas -->
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDriveSetup.exe</Image>
+          <QueryName condition="is">ecs.office.com</QueryName>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDriveSetup.exe</Image>
+          <QueryName condition="is">oneclient.sfx.ms</QueryName>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDriveSetup.exe</Image>
+          <QueryName condition="is">laboratoriosabin-my.sharepoint.com</QueryName>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDrive.Sync.Service.exe</Image>
+          <QueryName condition="is">ecs.office.com</QueryName>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDrive.Sync.Service.exe</Image>
+          <QueryName condition="is">oneclient.sfx.ms</QueryName>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDrive.Sync.Service.exe</Image>
+          <QueryName condition="is">laboratoriosabin-my.sharepoint.com</QueryName>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDriveLauncher.exe</Image>
+          <QueryName condition="is">ecs.office.com</QueryName>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDriveLauncher.exe</Image>
+          <QueryName condition="is">oneclient.sfx.ms</QueryName>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDriveLauncher.exe</Image>
+          <QueryName condition="is">laboratoriosabin-my.sharepoint.com</QueryName>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDrive.exe</Image>
+          <QueryName condition="is">ecs.office.com</QueryName>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDrive.exe</Image>
+          <QueryName condition="is">oneclient.sfx.ms</QueryName>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDrive.exe</Image>
+          <QueryName condition="is">laboratoriosabin-my.sharepoint.com</QueryName>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDriveStandaloneUpdater.exe</Image>
+          <QueryName condition="is">ecs.office.com</QueryName>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDriveStandaloneUpdater.exe</Image>
+          <QueryName condition="is">oneclient.sfx.ms</QueryName>
+        </Rule>
+        <Rule groupRelation="and">
+          <Image condition="contains all">C:\Users\;\AppData\Local\Microsoft\OneDrive\;\OneDriveStandaloneUpdater.exe</Image>
+          <QueryName condition="is">laboratoriosabin-my.sharepoint.com</QueryName>
+        </Rule>
+        <!-- OneDrive.exe -->
         <Rule groupRelation="and">
           <Image condition="is">C:\Program Files\Microsoft OneDrive\OneDrive.exe</Image>
           <QueryName condition="end with">blob.core.windows.net</QueryName>
